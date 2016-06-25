@@ -402,7 +402,8 @@ function testEmail(){
                 'os' => L('os'),
                 'votes' => L('votes'),
                 'estimatedeffort' => L('estimatedeffort'),
-                'effort' => L('effort'));
+                'effort' => L('effort'),
+                'dayWithoutAction' => L('dayWithoutAction'));
             $selectedcolumns = explode(' ', Post::val('visible_columns', $fs->prefs['visible_columns']));
         ?>
 

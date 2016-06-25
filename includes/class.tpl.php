@@ -1328,3 +1328,7 @@ class Url {
 }
 // }}}
 // }}}
+
+function tpl_dayWithoutAction($name, $value){
+    return '<label class="default" for="'.$name.'">'.L('countDays').'</label><input class="text" type="number" name="'.$name.'" id="'.$name.'" value="'.$value.'" autocomplete="off" min="0">';
+}

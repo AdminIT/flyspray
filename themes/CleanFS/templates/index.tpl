@@ -301,6 +301,10 @@ echo tpl_select(
                         <?php echo tpl_datepicker('closedto', L('selectclosedto')); ?>
                     </div>
                 </fieldset>
+                <fieldset class="advsearch_dayWithoutAction">
+                    <legend><?php echo Filters::noXSS(L('dayWithoutAction')); ?></legend>
+                    <?php echo tpl_dayWithoutAction('dayWithoutAction', Get::val('dayWithoutAction')); ?>
+                </fieldset>
             </div>
 </form>
 <?php endif; ?>

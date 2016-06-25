@@ -1399,6 +1399,32 @@ LEFT JOIN {users} uo ON t.opened_by = uo.user_id ';
             }
         }
 
+        if (array_get($args, 'dayWithoutAction') || in_array('dayWithoutAction', $visible)) {
+        $select .= ' (SELECT
+if(
+  last_time IS NULL,
+  FLOOR(( UNIX_TIMESTAMP() - tks2.last_edited_time) / 86400),
+  if(
+    last_time > tks2.last_edited_time,
+    FLOOR(( UNIX_TIMESTAMP() - last_time) / 86400),
+    FLOOR(( UNIX_TIMESTAMP() - tks2.last_edited_time) / 86400)
+  )
+) as dayWithoutAction
+FROM
+ {tasks} tks2
+LEFT JOIN (SELECT
+       MAX(tksc2.last_edited_time) last_time,
+ tksc2.task_id
+      FROM
+        flyspray_comments tksc2
+      GROUP BY
+        tksc2.task_id
+     ) last_comment_time
+ USING(task_id)
+WHERE
+ tks2.task_id = t.task_id) as dayWithoutAction, ';
+        }
+
         if (array_get($args, 'closed')) {
             $select .= ' uc.real_name AS closed_by_name, ';
             $from .= '
@@ -1429,6 +1455,29 @@ LEFT JOIN {list_os} los ON t.operating_system = los.os_id ';
         if (array_get($args, 'has_attachment')) {
             $where[] = 'EXISTS (SELECT 1 FROM {attachments} att WHERE t.task_id = att.task_id)';
         }
+
+        $dayWithoutAction = array_get($args, 'dayWithoutAction');
+
+        if ($dayWithoutAction !== false && $dayWithoutAction != "" && (int) $dayWithoutAction != 0 && $dayWithoutAction != null) {
+           $where[] = 't.task_id IN (SELECT
+ tks.task_id
+FROM
+ {tasks} tks
+LEFT JOIN (SELECT
+       MAX(tksc.last_edited_time) last_time,
+ tksc.task_id
+      FROM
+        {comments} tksc
+      GROUP BY
+        tksc.task_id
+     ) last_comment_time
+ USING(task_id)
+WHERE
+    ( last_comment_time.last_time IS NULL OR last_comment_time.last_time < ' . (time() - ((int) $dayWithoutAction * 86400)) . ')
+ AND
+   tks.last_edited_time < ' . (time() - ((int) $dayWithoutAction * 86400)) . ')';
+        }
+
         # 20150213 currently without recursive subtasks!
         if (in_array('effort', $visible)) {
             $select .= ' (SELECT SUM(ef.effort) FROM {effort} ef WHERE t.task_id = ef.task_id) AS effort, ';
@@ -1676,6 +1725,7 @@ LEFT JOIN {cache} cache ON t.task_id=cache.topic AND cache.type=\'task\' ';
             'comments' => 'num_comments',
             'private' => 'mark_private',
             'supertask' => 't.supertask_id',
+            'dayWithoutAction' => 'dayWithoutAction',
         );
 
         // make sure that only columns can be sorted that are visible (and task severity, since it is always loaded)

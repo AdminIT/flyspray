@@ -180,7 +180,8 @@
             'os' => L('os'),
             'votes' => L('votes'),
             'estimatedeffort' => L('estimatedeffort'),
-            'effort' => L('effort'));
+            'effort' => L('effort'),
+            'dayWithoutAction' => L('dayWithoutAction'));
           $selectedcolumns = explode(' ', Post::val('visible_columns', $proj->prefs['visible_columns']));
          ?>
 

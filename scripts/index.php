@@ -173,6 +173,7 @@ function tpl_draw_cell($task, $colname, $format = "<td class='%s'>%s</td>") {
             'private'    => 'mark_private',
             'parent'     => 'supertask_id',
             'estimatedeffort' => 'estimated_effort',
+            'dayWithoutAction' => 'dayWithoutAction',
         );
 
     //must be an array , must contain elements and be alphanumeric (permitted  "_")
@@ -410,6 +411,7 @@ function export_task_list()
             'private'    => 'mark_private',
             'supertask'  => 'supertask_id',
             'detailed_desc'=>'detailed_desc',
+            'dayWithoutAction' => 'dayWithoutAction',
         );
 
 

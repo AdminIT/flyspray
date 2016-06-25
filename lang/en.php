@@ -1074,5 +1074,7 @@ Regards,',
 'taskdetails'             => 'Task Details',
 'taskediting'             => 'Task Editing',
 'savetask'                => 'save task'
+'dayWithoutAction'        => 'Days without response',
+'countDays'               => 'Number of days',
 );
 ?>

@@ -1512,3 +1512,6 @@ div.comment_container {margin:0;}
 div.comment_container .commenttext{padding:2px;}
 div.comment_container .comment {margin:0;width:auto;}
 }
+.advsearch_dayWithoutAction label.default {
+    display: block;
+}
