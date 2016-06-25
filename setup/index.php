@@ -22,6 +22,9 @@ require_once OBJECTS_PATH.'/class.flyspray.php';
 require_once OBJECTS_PATH.'/i18n.inc.php';
 require_once OBJECTS_PATH.'/class.tpl.php';
 
+// Load translations
+load_translations();
+
 # must be sure no-cache before any possible redirect, we maybe come back later here after composer install stuff.
 header("Expires: Tue, 03 Jul 2001 06:00:00 GMT");
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
@@ -123,14 +126,13 @@ class Setup extends Flyspray
       $this->mMinPasswordLength	= 8;
 
       // Initialise flag for proceeding to next step.
-      $this->mProceed				= false;
-      $this->mPhpRequired			= '5.2.0';
+      $this->mProceed = false;
+      $this->mPhpRequired = '5.3.3'; # composer minimum php version
       $this->xmlStatus = function_exists('xml_parser_create');
       $this->sapiStatus = (php_sapi_name() != 'cgi');
 
       // If the database is supported in Flyspray, the function to check in PHP.
-      $this->mSupportedDatabases	=
-                           array(
+      $this->mSupportedDatabases = array(
                                  'MySQLi' => array(true,'mysqli_connect','mysqli'),
                                  'MySQL' => array(true, 'mysql_connect', 'mysql'),
                                  'Postgres' => array(true, 'pg_connect', 'pgsql'),
@@ -225,7 +227,7 @@ class Setup extends Flyspray
    */
    public function CheckPhpCompatibility()
    {
-      // Check the PHP version. Recommended version is 4.3.9 and above
+      // Check the PHP version.
       $this->mPhpVersionStatus = version_compare(PHP_VERSION, $this->mPhpRequired, '>=');
 
       // Return an html formated Yes/No string
@@ -292,21 +294,21 @@ class Setup extends Flyspray
                         'path' => TEMPLATE_FOLDER,
                         'template' => 'administration.tpl',
                         'vars' => array(
-                                    'product_name' => $this->mProductName,
-                                    'message' => $this->GetPageMessage(),
-                                    'admin_email' => $this->GetAdminInput('admin_email', $this->GetParamValue($data, 'admin_email', ''), 'Admin Email'),
-                                    'pass_phrase' => $this->GetParamValue($data, 'pass_phrase', ''),
-                                    'admin_username' => $this->GetAdminInput('admin_username', $this->GetParamValue($data, 'admin_username', ''), 'Admin Username'),
-                                    'admin_password' => $this->GetAdminInput('admin_password', $this->GetParamValue($data, 'admin_password', substr(md5(mt_rand()), 0, $this->mMinPasswordLength)), 'Admin Password'),
-                                    'db_type' => $this->GetParamValue($data, 'db_type', ''),
-                                    'db_hostname' => $this->GetParamValue($data, 'db_hostname', ''),
-                                    'db_username' => $this->GetParamValue($data, 'db_username', ''),
-                                    'db_password' => $this->GetParamValue($data, 'db_password', ''),
-                                    'db_name' => $this->GetParamValue($data, 'db_name', ''),
-                                    'db_prefix' => $this->GetParamValue($data, 'db_prefix', ''),
-									'daemonise' => $this->GetReminderDaemonSelection($this->GetParamValue($data, 'reminder_daemon', '0')),
-                                 ),
-                     ),
+                                'product_name' => $this->mProductName,
+                                'message' => $this->GetPageMessage(),
+                                'admin_email' => $this->GetParamValue($data, 'admin_email', ''),
+                                'pass_phrase' => $this->GetParamValue($data, 'pass_phrase', ''),
+                                'admin_username' => $this->GetParamValue($data, 'admin_username', ''),
+                                'admin_password' => $this->GetParamValue($data, 'admin_password', substr(md5(mt_rand()), 0, $this->mMinPasswordLength)),
+                                'db_type' => $this->GetParamValue($data, 'db_type', ''),
+                                'db_hostname' => $this->GetParamValue($data, 'db_hostname', ''),
+                                'db_username' => $this->GetParamValue($data, 'db_username', ''),
+                                'db_password' => $this->GetParamValue($data, 'db_password', ''),
+                                'db_name' => $this->GetParamValue($data, 'db_name', ''),
+                                'db_prefix' => $this->GetParamValue($data, 'db_prefix', ''),
+				'daemonise' => $this->GetReminderDaemonSelection($this->GetParamValue($data, 'reminder_daemon', '0')),
+                        ),
+            ),
 
             'structure' =>  array(
                            'path' => TEMPLATE_FOLDER,
@@ -490,19 +492,6 @@ class Setup extends Flyspray
       $this->OutputPage($templates);
    }
 
-
-
-   public function GetAdminInput($field, $value, $label)
-   {
-         $input_field	= "
-         <tr>
-            <td align=\"right\">$label</td>
-            <td align=\"center\"><input class=\"inputbox\" type=\"text\" name=\"$field\" value=\"$value\" size=\"30\" /></td>
-         </tr>";
-      return $input_field;
-   }
-
-
    public function GetDatabaseOutput()
    {
       $output = '';
@@ -530,7 +519,7 @@ class Setup extends Flyspray
    */
    public function GetIniSetting($option)
    {
-      return (ini_get($option) == '1' ? 'ON' : 'OFF');
+      return (ini_get($option) == '1' ? L('on') : L('off'));
    }
 
    /**
@@ -594,15 +583,15 @@ class Setup extends Flyspray
       // Array of the setting name, php ini name and the recommended value
       $test_settings =
       array(
-            array ('Safe Mode','safe_mode','OFF'),
-            array ('File Uploads','file_uploads','ON'),
-            array ('Magic Quotes GPC','magic_quotes_gpc','OFF'),
-            array ('Register Globals','register_globals','OFF'),
+            array ('Safe Mode','safe_mode', L('off')),
+            array ('File Uploads','file_uploads', L('on')),
+            array ('Magic Quotes GPC','magic_quotes_gpc', L('off')),
+            array ('Register Globals','register_globals', L('off')),
             //array ('Output Buffering','output_buffering','OFF'),
             );
 
       if (substr(php_sapi_name(), 0, 3) == 'cgi') {
-          $test_settings[] = array ('CGI fix pathinfo','cgi.fix_pathinfo','ON');
+          $test_settings[] = array ('CGI fix pathinfo','cgi.fix_pathinfo', L('on'));
       }
 
       $output = '';
@@ -631,12 +620,12 @@ class Setup extends Flyspray
 
         if ($value == 1) {
 
-                $selection .= '<input type="radio" name="reminder_daemon" value="1" checked="checked" /> Enable';
-                $selection .= '<input type="radio" name="reminder_daemon" value="0" /> Disable';
+                $selection .= '<input type="radio" name="reminder_daemon" value="1" checked="checked" /> '.L('enable');
+                $selection .= '<input type="radio" name="reminder_daemon" value="0" /> '.L('disable');
         } else {
 
-                $selection .= '<input type="radio" name="reminder_daemon" value="1" /> Enable';
-                $selection .= '<input type="radio" name="reminder_daemon" value="0" checked="checked" /> Disable';
+                $selection .= '<input type="radio" name="reminder_daemon" value="1" /> '.L('enable');
+                $selection .= '<input type="radio" name="reminder_daemon" value="0" checked="checked" /> '.L('disable');
         }
             return $selection;
 
@@ -741,25 +730,20 @@ class Setup extends Flyspray
                'admin_username' => array('Administrator\'s username', 'string', true),
                'admin_password' => array("Administrator's Password must be minimum {$this->mMinPasswordLength} characters long and", 'password', true),
                'admin_email' => array('Administrator\'s email address', 'email address', true),
-			   'reminder_daemon' => array('Reminder Daemon', 'option', false),
+               'syntax_plugin' => array('Syntax', 'option', true), # required true while testing, for release could be false.
+		'reminder_daemon' => array('Reminder Daemon', 'option', false),
                );
-            if ($data = $this->CheckPostedData($required_data, $message = 'Missing config values'))
-            {
+            if ($data = $this->CheckPostedData($required_data, $message = 'Missing config values')) {
                // Set a page heading in case of errors.
                $_SESSION['page_heading'] = 'Administration Processing';
 
-               if ($this->ProcessAdminConfig($data))
-               {
+               if ($this->ProcessAdminConfig($data)) {
                   $this->DisplayCompletion($data);
-               }
-               else
-               {
+               } else {
                   $_POST['action'] = 'administration';
                   $this->DisplayAdministration();
                }
-            }
-            else
-            {
+            } else {
                $_POST['action'] = 'administration';
                $this->DisplayAdministration();
             }
@@ -775,8 +759,9 @@ class Setup extends Flyspray
 
    public function ProcessAdminConfig($data)
    {
-      // Extract the varibales to local namespace
+      // Extract the variables to local namespace
       extract($data);
+	if(!isset($syntax_plugin)){$syntax_plugin="";}
 
       $config_intro	=
       "; <?php die( 'Do not access this page directly.' ); ?>
@@ -786,13 +771,13 @@ class Setup extends Flyspray
       ; database itself and are managed directly within the Flyspray admin interface.
       ; You should consider putting this file somewhere that isn't accessible using
       ; a web browser, and editing header.php to point to wherever you put this file.\n";
-      $config_intro	= str_replace("\t", "", $config_intro);
+      $config_intro = str_replace("\t", "", $config_intro);
 
       // Create a random cookie salt
       $cookiesalt = md5(uniqid(mt_rand(), true));
 
 	  // check to see if to enable the Reminder Daemon.
-      $daemonise	= ( (isset($data['reminder_daemon'])) && ($data['reminder_daemon'] == 1) )
+      $daemonise = ( (isset($data['reminder_daemon'])) && ($data['reminder_daemon'] == 1) )
 					? 1
 					: 0;
       $db_prefix = (isset($data['db_prefix']) ? $data['db_prefix'] : '');
@@ -814,7 +799,7 @@ class Setup extends Flyspray
       $config[] = "dot_format = \"png\" ; \"png\" or \"svg\"";
       $config[] = "reminder_daemon = \"$daemonise\"		; Boolean. 0 = off, 1 = on (cron job), 2 = on (PHP).";
       $config[] = "doku_url = \"http://en.wikipedia.org/wiki/\"      ; URL to your external wiki for [[dokulinks]] in FS";
-      $config[] = "syntax_plugin = \"none\"                               ; Plugin name for Flyspray's syntax (use any non-existing plugin name for deafult syntax)";
+      $config[] = 'syntax_plugin = "'.$syntax_plugin.'" ; Plugin name for Flyspray\'s syntax (use any non-existing plugin name for default syntax)';
       $config[] = "update_check = \"1\"                               ; Boolean. 0 = off, 1 = on.";
       $config[] = "\n";
       $config[] = "[attachments]";
@@ -853,6 +838,13 @@ class Setup extends Flyspray
 
       // Setting the database for the ADODB connection
       require_once($this->mAdodbPath);
+
+	# 20160408 peterdd: hack to enable database socket usage with adodb-5.20.3 . For instance on german 1und1 managed linux servers ( e.g. $db_hostname ='localhost:/tmp/mysql5.sock' )
+	if( $db_type=='mysqli' && 'localhost:/'==substr($db_hostname,0,11) ){
+		$dbsocket=substr($db_hostname,10);
+		$db_hostname='localhost';
+		ini_set( 'mysqli.default_socket', $dbsocket );
+	}
 
       $this->mDbConnection =& NewADOConnection(strtolower($db_type));
       $this->mDbConnection->Connect($db_hostname, $db_username, $db_password, $db_name);
@@ -915,11 +907,15 @@ class Setup extends Flyspray
          trigger_error('ADODB Libraries missing or not correct version');
       }
 
+	# 20160408 peterdd: hack to enable database socket usage with adodb-5.20.3 . For instance on german 1und1 managed linux servers ( e.g. $data['db_hostname'] ='localhost:/tmp/mysql5.sock' )
+	if( strtolower($data['db_type'])=='mysqli' && 'localhost:/'==substr($data['db_hostname'],0,11) ){
+		$dbsocket=substr($data['db_hostname'],10);
+		$data['db_hostname']='localhost';
+		ini_set( 'mysqli.default_socket', $dbsocket );
+	}
+
       // Setting the database type for the ADODB connection
       $this->mDbConnection =& NewADOConnection(strtolower($data['db_type']));
-
-      /* check hostname/username/password */
-
       if (!$this->mDbConnection->Connect(array_get($data, 'db_hostname'), array_get($data, 'db_username'), array_get($data, 'db_password'), array_get($data, 'db_name')))
       {
          $_SESSION['page_heading'] = 'Database Processing';
@@ -945,7 +941,9 @@ class Setup extends Flyspray
             $this->mDbConnection =& NewADOConnection(strtolower($data['db_type']));
             $this->mDbConnection->Connect(array_get($data, 'db_hostname'), array_get($data, 'db_username'), array_get($data, 'db_password'));
             $dict = NewDataDictionary($this->mDbConnection);
-            $sqlarray = $dict->CreateDatabase(array_get($data, 'db_name'));
+            #$sqlarray = $dict->CreateDatabase(array_get($data, 'db_name'));
+            # if possible set correct default character set for mysql.
+            $sqlarray = $dict->CreateDatabase(array_get($data, 'db_name'), array('mysql'=>'DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci') );
             if (!$dict->ExecuteSQLArray($sqlarray)) {
                 $_SESSION['page_message'][] = ucfirst($this->mDbConnection->MetaErrorMsg($error_number)) . ': ' . ucfirst($this->mDbConnection->ErrorMsg($error_number));
                 $_SESSION['page_message'][] = 'Your database does not exist and could not be created. Either create the database yourself, choose an existing database or
@@ -1097,43 +1095,43 @@ class Setup extends Flyspray
    * @param string $type The type of html format to return
    * @return string Depending on the type of format to return
    */
-   public function ReturnStatus($boolean, $type = 'yes')
+   public static function ReturnStatus($boolean, $type = 'yes')
    {
       // Do a switch on the type of status
       switch($type)
       {
       case 'yes':
          return ($boolean)
-         ?  '<span class="green">Yes</span>'
-         :  '<span class="red">No</span>';
+		 ?  '<span class="green">'.L('yes').'</span>'
+         :  '<span class="red">'.L('no').'</span>';
          break;
 
       case 'available':
          return ($boolean)
-         ?  '<span class="green">Available</span>'
-         :  '<span class="red">Missing</span>';
+         ?  '<span class="green">'.L('available').'</span>'
+         :  '<span class="red">'.L('missing').'</span>';
          break;
 
       case 'writeable':
          return ($boolean)
-         ?  '<span class="green">Writeable</span>'
-         :  '<span class="red">Un-writeable</span>';
+         ?  '<span class="green">'.L('writeable').'</span>'
+         :  '<span class="red">'.L('unwriteable').'</span>';
          break;
 
       case 'on':
          return ($boolean)
-         ?  '<span class="green">ON</span>'
-         :  '<span class="red">OFF</span>';
+         ?  '<span class="green">'.L('on').'</span>'
+         :  '<span class="red">'.L('off').'</span>';
          break;
       case 'support':
          return ($boolean)
-         ?  '<span class="green">Supported</span>'
-         :  '<span class="red">X</span>';
+         ?  '<span class="green">'.L('supported').'</span>'
+         :  '<span class="red">'.L('x').'</span>';
          break;
       default:
          return ($boolean)
-         ?  '<span class="green">True</span>'
-         :  '<span class="red">False</span>';
+         ?  '<span class="green">'.L('true').'</span>'
+         :  '<span class="red">'.L('false').'</span>';
          break;
       }
    }
@@ -1170,7 +1168,7 @@ class Setup extends Flyspray
             break;
 
             case 'email address':
-             return filter_var($value, \FILTER_VALIDATE_EMAIL);
+             return filter_var($value, FILTER_VALIDATE_EMAIL);
              break;
 
             case 'boolean':

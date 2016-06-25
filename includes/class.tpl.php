@@ -253,7 +253,18 @@ function tpl_tasklink($task, $text = null, $strict = false, $attrs = array(), $t
 
     // to store search options
     $params = $_GET;
-    unset($params['do'], $params['action'], $params['task_id'], $params['switch']);
+	unset($params['do'], $params['action'], $params['task_id'], $params['switch']);
+	if(isset($params['event_number'])){
+		# shorter links to tasks from report page
+		unset($params['events'], $params['event_number'], $params['fromdate'], $params['todate'], $params['submit']);
+	}
+
+	# We can unset the project param for shorter urls because flyspray knows project_id from current task data.
+	# Except we made a search from an 'all projects' view before, so the prev/next navigation on details page knows
+	# if it must search only in the project of current task or all projects the user is allowed to see tasks.
+	if(!isset($params['advancedsearch']) || (isset($params['project']) && $params['project']!=0) ){
+		unset($params['project']);
+	}
 
     $url = htmlspecialchars(CreateURL('details', $task['task_id'],  null, $params), ENT_QUOTES, 'utf-8');
     $title_text = htmlspecialchars($title_text, ENT_QUOTES, 'utf-8');
@@ -281,52 +292,56 @@ function tpl_userlink($uid)
         }
     }
 
-    if (isset($uname)) {
-        $url = CreateURL(($user->perms('is_admin')) ? 'edituser' : 'user', $uid);
-        $cache[$uid] = vsprintf('<a href="%s">%s</a>', array_map(array('Filters', 'noXSS'), array($url, $rname)));
-    } elseif (empty($cache[$uid])) {
-        $cache[$uid] = eL('anonymous');
-    }
+	if (isset($uname)) {
+		#$url = CreateURL(($user->perms('is_admin')) ? 'edituser' : 'user', $uid);
+		# peterdd: I think it is better just to link to the user's page instead direct to the 'edit user' page also for admins.
+		# With more personalisation coming (personal todo list, charts, ..) in future to flyspray
+		# the user page itself is of increasing value. Instead show the 'edit user'-button on user's page.
+		$url = CreateURL('user', $uid);
+		$cache[$uid] = vsprintf('<a href="%s">%s</a>', array_map(array('Filters', 'noXSS'), array($url, $rname)));
+	} elseif (empty($cache[$uid])) {
+		$cache[$uid] = eL('anonymous');
+	}
 
-    return $cache[$uid];
+	return $cache[$uid];
 }
-
 function tpl_userlinkavatar($uid, $size, $class='', $style='')
 {
 	global $db, $user, $baseurl, $fs;
-	if (is_array($uid)) {
-		list($uid, $uname, $rname) = $uid;
-	}
 
-	$sql = $db->Query('SELECT user_name, real_name, email_address, profile_image FROM {users} WHERE user_id = ?',
-		array(intval($uid)));
-	if ($sql && $db->countRows($sql)) {
-		list($uname, $rname, $email, $profile_image) = $db->fetchRow($sql);
-	} else {
-		return;
-	}
+	static $avacache=array();
 
-	$email = md5(strtolower(trim($email)));
-	$default = 'mm';
-
-	if (is_file(BASEDIR.'/avatars/'.$profile_image)) {
-		$image = '<img src="'.$baseurl.'/avatars/'.$profile_image.'" width="'.$size.'" height="'.$size.'"/>';
-	} else {
-		if (isset($fs->prefs['gravatars']) && $fs->prefs['gravatars'] == 1) {
-			$url = '//www.gravatar.com/avatar/'.$email.'?d='.urlencode($default).'&s='.$size;
-			$image = '<img src="'.$url.'" width="'.$size.'" height="'.$size.'"/>';
+	if($uid>0 && empty($avacache[$uid])){
+		$sql = $db->Query('SELECT user_name, real_name, email_address, profile_image FROM {users} WHERE user_id = ?', array(intval($uid)));
+		if ($sql && $db->countRows($sql)) {
+			list($uname, $rname, $email, $profile_image) = $db->fetchRow($sql);
 		} else {
-			$image = '';
+			return;
+		}
+
+		if (is_file(BASEDIR.'/avatars/'.$profile_image)) {
+			$image = '<img src="'.$baseurl.'avatars/'.$profile_image.'" width="'.$size.'" height="'.$size.'"/>';
+		} else {
+			if (isset($fs->prefs['gravatars']) && $fs->prefs['gravatars'] == 1) {
+				$email = md5(strtolower(trim($email)));
+				$default = 'mm';
+				$imgurl = '//www.gravatar.com/avatar/'.$email.'?d='.urlencode($default).'&s='.$size;
+				$image = '<img src="'.$imgurl.'" width="'.$size.'" height="'.$size.'"/>';
+			} else {
+				$image = '<i class="fa fa-user" style="font-size:'.$size.'px"></i>';
+			}
+		}
+		if (isset($uname)) {
+			#$url = CreateURL(($user->perms('is_admin')) ? 'edituser' : 'user', $uid);
+			# peterdd: I think it is better just to link to the user's page instead direct to the 'edit user' page also for admins.
+			# With more personalisation coming (personal todo list, charts, ..) in future to flyspray
+			# the user page itself is of increasing value. Instead show the 'edit user'-button on user's page.
+			$url = CreateURL('user', $uid);
+			$avacache[$uid] = '<a'.($class!='' ? ' class="'.$class.'"':'').($style!='' ? ' style="'.$style.'"':'').' href="'.$url.'" title="'.$rname.'">'.$image.'</a>';
 		}
 	}
-
-	if (isset($uname)) {
-		$url = CreateURL(($user->perms('is_admin')) ? 'edituser' : 'user', $uid);
-		$link = '<a'.($class!='' ? ' class="'.$class.'"':'').($style!='' ? ' style="'.$style.'"':'').' href="'.$url.'" title="'.$rname.'">'.$image.'</a>';
-	}
-	return $link;
+	return $avacache[$uid];
 }
-
 
 function tpl_fast_tasklink($arr)
 {
@@ -500,43 +515,207 @@ function tpl_date_formats($selected, $detailed = false)
 }
 
 // {{{ Options for a <select>
+/**
+ * FIXME peterdd: This function is currently often called by templates with just 
+ * results from sqltablequeries like  select * from tablex, 
+ * so data[0] and data[1] of each row works only by table structure convention as wished.
+ * not by names, lack of a generic optgroup feature, css-id, css-classes, disabled option.
+ * Maybe rewrite a as tpl_select() ..
+ * 
+ * @options array of values
+ * For optgroups, the values should be presorted by the optgroups
+ * example:
+ * $options=array(
+ * 	array(3,'project3',1), # active project group
+ * 	array(2,'project2',1),
+ * 	array(5,'project5',0)  # inactive project optgroup
+ * ); tpl_options($options, 2)
+*/
 function tpl_options($options, $selected = null, $labelIsValue = false, $attr = null, $remove = null)
 {
-    $html = '';
+	$html = '';
 
-    // force $selected to be an array.
-    // this allows multi-selects to have multiple selected options.
+	// force $selected to be an array.
+	// this allows multi-selects to have multiple selected options.
+	$selected = is_array($selected) ? $selected : (array) $selected;
+	$options = is_array($options) ? $options : (array) $options;
 
-    // operate by value ..
-    $selected = is_array($selected) ? $selected : (array) $selected;
-    $options = is_array($options) ? $options : (array) $options;
+	$lastoptgroup=0;
+	$optgroup=0;
+        $ingroup=false;
+	foreach ($options as $idx=>$data) {
+		if (is_array($data)) {
+			$value = $data[0];
+			$label = $data[1];
+			# just a temp hack, we currently use optgroups only for project dropdown...
+			$optgroup=array_key_exists('project_is_active',$data) ? $data['project_is_active'] : 0;
+			if (array_key_exists('project_title', $data) && $optgroup!=$lastoptgroup) {
+				if ($ingroup) {
+					$html.='</optgroup>';
+				}
+				$html.='<optgroup'.($optgroup==0 ? ' label="'.L('inactive').'"' : '' ).'>';
+				$ingroup=true;
+			}
+		} else{
+			$value=$idx;
+			$label=$data;
+		}
+		$label = htmlspecialchars($label, ENT_QUOTES, 'utf-8');
+		$value = $labelIsValue ? $label : htmlspecialchars($value, ENT_QUOTES, 'utf-8');
 
-    foreach ($options as $value=>$label)
-    {
-        if (is_array($label)) {
-            $value = $label[0];
-            $label = $label[1];
-        }
-        $label = htmlspecialchars($label, ENT_QUOTES, 'utf-8');
-        $value = $labelIsValue ? $label
-                               : htmlspecialchars($value, ENT_QUOTES, 'utf-8');
+		if ($value === $remove) {
+			continue;
+		}
 
-        if ($value === $remove) {
-            continue;
-        }
+		$html .= '<option value="'.$value.'"';
+		if (in_array($value, $selected)) {
+			$html .= ' selected="selected"';
+		}
+		$html .= ($attr ? join_attrs($attr): '') . '>' . $label . '</option>';
+		$lastoptgroup=$optgroup;
+	}
+	
+	if ($ingroup) {
+	$html.='</optgroup>';
+	}
+	
+	if (!$html) {
+		$html .= '<option value="0">---</option>';
+	}
 
-        $html .= '<option value="'.$value.'"';
-        if (in_array($value, $selected)) {
-            $html .= ' selected="selected"';
-        }
-        $html .= ($attr ? join_attrs($attr): '') . '>' . $label . '</option>';
-    }
-    if (!$html) {
-        $html .= '<option value="0">---</option>';
-    }
-
-    return $html;
+	return $html;
 } // }}}
+
+
+// {{{ tpl_select()
+/**
+ * builds a complete HTML-select with select options
+ *
+ * supports free choosable attributes for select, options and optgroup tags. optgroups can also be nested.
+ *
+ * @author peterdd 
+ *
+ * @param array key-values pairs and can be nested
+ *
+ * @return string the complete html-select
+ * 
+ * @since 1.0.0-beta3
+ * 
+ * @example
+ * example output of print_r($array) to see the structure of the param $array
+ * Array
+  (
+    [name] => varname          // required if you want submit it with a form to the server
+    [attr] => Array            // optional 
+        (
+            [id] => selid   // optional
+            [class] => selclass1  // optional
+        )
+    [options] => Array         // optional, but without doesn't make much sense ;-)
+        (
+            [0] => Array       // at least one would be useful
+                (
+                    [value] => opt1val     // recommended
+                    [label] => opt1label   // recommended
+                    [disabled] => 1        // optional
+                    [selected] => 1        // optional
+                    [attr] => Array        // optional
+                        (
+                            [id] => opt1id        // optional
+                            [class] => optclass1  // optional
+                        )
+                )
+            [1] => Array
+                (
+                    [optgroup] => 1          // this tells the function that now comes an optgroup
+                    [label] => optgrouplabel // optional
+                    [attr] => Array          // optional
+                        (
+                            [id] => optgroupid1        // optional
+                            [class] => optgroupclass1  // optional
+                        )
+                    [options] => Array
+                        // ... nested options and optgroups can follow here....
+                )
+                // ... and so on          
+        )
+  )
+ */
+function tpl_select($select=array()){
+
+	$attrjoin='';
+	foreach($select['attr'] as $key=>$val){
+		$attrjoin.=' '.$key.'="'.htmlspecialchars($val, ENT_QUOTES, 'utf-8').'"';
+	}
+	$html='<select name="'.$select['name'].'"'.$attrjoin.'>';
+	$html.=tpl_selectoptions($select['options']);
+	$html.="\n".'</select>';
+	return $html;
+} // }}}
+
+
+// {{{ tpl_selectoptions()
+/**
+ * tpl_selectoptions()  
+ *
+ * @author peterdd 
+ *
+ * @param array key-values pairs and can be nested
+ *
+ * @return string option- and optgroup-tags as one string
+ * 
+ * @since 1.0.0-beta3
+ * 
+ * called by tpl_select()
+ * called recursively by itself 
+ * Can also be called alone from template if the templates writes the wrapping select-tags.
+ *
+ * @example see [options]-array of example of tpl_select()
+ */
+function tpl_selectoptions($options=array(), $level=0){
+	$html='';
+	# such deep nesting is too weired - probably an endless loop lets
+	# return before something bad happens
+	if( $level>10){
+		return;
+	}
+	#print_r($options);
+	#print_r($level);
+	foreach($options as $o){
+		if(isset($o['optgroup'])){
+			# we have an optgroup
+			$html.="\n".str_repeat("\t",$level).'<optgroup label="'.$o['label'].'"';
+			if(isset($o['attr'])){
+				foreach($o['attr'] as $key=>$val){
+					$html.=' '.$key.'="'.htmlspecialchars($val, ENT_QUOTES, 'utf-8').'"';
+				}
+			}
+			$html.='>';
+			# may contain options and suboptgroups..
+			$html.=tpl_selectoptions($o['options'], $level+1);
+			$html.="\n".str_repeat("\t",$level).'</optgroup>';
+		} else{
+			# we have a simple option
+			$html.="\n".str_repeat("\t",$level).'<option value="'.htmlspecialchars($o['value'], ENT_QUOTES, 'utf-8').'"';
+			if(isset($o['disabled'])){
+				$html.=' disabled="disabled"'; # xhtml compatible
+			}
+			if(isset($o['selected'])){
+				$html.=' selected="selected"'; # xhtml compatible
+			}
+			if(isset($o['attr'])){
+				foreach($o['attr'] as $key=>$val){
+					$html.=' '.$key.'="'.htmlspecialchars($val, ENT_QUOTES, 'utf-8').'"';
+				}
+			}
+			$html.='>'.htmlspecialchars($o['label'], ENT_QUOTES, 'utf-8').'</option>';
+		}
+	}
+		
+	return $html;
+} // }}}
+
+
 // {{{ Double <select>
 function tpl_double_select($name, $options, $selected = null, $labelIsValue = false, $updown = true)
 {
@@ -661,7 +840,7 @@ class TextFormatter
             return call_user_func(array($conf['general']['syntax_plugin'] . '_TextFormatter', 'render'),
                                   $text, $type, $id, $instructions);
         } else {
-            $text=strip_tags($text, '<br><br/><p><h2><h3><h4><h5><h5><h6><blockquote><a><img><u><b><strong><s><ins><del><ul><ol><li>');
+            $text=strip_tags($text, '<br><br/><p><h2><h3><h4><h5><h5><h6><blockquote><a><img><u><b><strong><s><ins><del><ul><ol><li><table><caption><tr><col><colgroup><td><th><thead><tfoot><tbody><code>');
             if ($conf['general']['syntax_plugin'] && $conf['general']['syntax_plugin'] != 'none') {
                 $text='Missing output plugin '.$conf['general']['syntax_plugin'].'!'
                 .'<br/>Couldn\'t call '.$conf['general']['syntax_plugin'].'_TextFormatter::render()'
@@ -674,7 +853,7 @@ class TextFormatter
             //Have removed this as creating additional </br> lines even though <p> is already dealing with it
             //possibly an conversion from Dokuwiki syntax to html issue, left in in case anyone has issues and needs to comment out
             //$text = ' ' . nl2br($text) . ' ';
-
+            
             // Change FS#123 into hyperlinks to tasks
             return preg_replace_callback("/\b(?:FS#|bug )(\d+)\b/", 'tpl_fast_tasklink', trim($text));
         }
@@ -709,6 +888,7 @@ class TextFormatter
 }
 // }}}
 // Format Date {{{
+// Questionable if this function belongs in this class. Usages also elsewhere and not UI-related.
 function formatDate($timestamp, $extended = false, $default = '')
 {
     global $db, $conf, $user, $fs;
@@ -742,25 +922,47 @@ function formatDate($timestamp, $extended = false, $default = '')
     //it returned utf-8 encoded by the system
     return strftime(Filters::noXSS($dateformat), (int) $timestamp);
 } /// }}}
-// {{{ Draw permissi ons table
+
+// {{{ Draw permissions table
 function tpl_draw_perms($perms)
 {
-    global $proj;
+	global $proj;
 
-    $perm_fields = array('is_admin', 'manage_project', 'view_tasks',
-            'open_new_tasks', 'modify_own_tasks', 'modify_all_tasks', 'edit_assignments',
-            'view_comments', 'add_comments', 'edit_comments', 'delete_comments',
-            'create_attachments', 'delete_attachments',
-            'view_history', 'close_own_tasks', 'close_other_tasks',
-            'assign_to_self', 'assign_others_to_self', 'view_reports',
-            'add_votes', 'edit_own_comments', 'view_estimated_effort',
-            'track_effort', 'view_current_effort_done', 'add_multiple_tasks', 'view_roadmap'
-    );
+	$perm_fields = array(
+		'is_admin',
+		'manage_project',
+		'view_tasks',
+		'view_groups_tasks',
+		'view_own_tasks',
+		'open_new_tasks',
+		'add_multiple_tasks',
+		'modify_own_tasks',
+		'modify_all_tasks',
+		'create_attachments',
+		'delete_attachments',
+		'assign_to_self',
+		'assign_others_to_self',
+		'edit_assignments',
+		'close_own_tasks',
+		'close_other_tasks',
+		'view_roadmap',
+		'view_history',
+		'view_reports',
+		'add_votes',
+		'view_comments',
+		'add_comments',
+		'edit_comments',
+		'edit_own_comments',
+		'delete_comments',
+		'view_estimated_effort',
+		'view_current_effort_done',
+		'track_effort'
+	);
 
-    $yesno = array(
-            '<td class="bad fa fa-ban" title="'.eL('no').'"></td>',
-            '<td class="good fa fa-check" title="'.eL('yes').'"></td>'
-    );
+	$yesno = array(
+		'<td class="bad fa fa-ban" title="'.eL('no').'"></td>',
+		'<td class="good fa fa-check" title="'.eL('yes').'"></td>'
+	);
 
     # 20150307 peterdd: This a temporary hack
     $i=0;
@@ -858,10 +1060,15 @@ function CreateURL($type, $arg1 = null, $arg2 = null, $arg3 = array())
             case 'project':
                 $return = $url . 'proj' . $arg1;
                 break;
-
-            case 'toplevel':
+                
+            case 'reports':    
             case 'roadmap':
+            case 'toplevel':
+            case 'gantt':
             case 'index':
+            	$return = $url.$type.'/proj'.$arg1;
+            	break;
+            	
             case 'newtask':
             case 'newmultitasks':
                 $return = $url . $type . '/proj' . $arg1 . ($arg2 ? '/supertask' . $arg2 : '');
@@ -877,19 +1084,22 @@ function CreateURL($type, $arg1 = null, $arg2 = null, $arg3 = array())
             case 'register':
                 $return = $url . $type;
                 break;
-            case 'reports':
-                $return = $url.'reports/proj'.$arg1;
-                break;
+            
             case 'mytasks':
                 $return = $url.'proj'.$arg1.'/dev'.$arg2;
                 break;
             case 'tasklist':
-            	$return = $url.'proj'.$arg1;
+		# see also .htaccess for the mapping
+		if($arg1>0 && $fs->projects[$arg1]['default_entry']=='index'){
+			$return = $url.'proj'.$arg1;
+		}else{
+			$return = $url.$type.'/proj'.$arg1;
+		}
+
             	break;
             default:
             	$return = $baseurl . 'index.php';
             	break;
-
         }
     } else {
         if ($type == 'edittask') {
@@ -927,9 +1137,15 @@ function CreateURL($type, $arg1 = null, $arg2 = null, $arg3 = array())
                 $return = $baseurl . 'index.php?project=' . $arg1;
                 break;
 
+            case 'reports':
             case 'roadmap':
             case 'toplevel':
+            case 'gantt':
             case 'index':
+            case 'tasklist':
+            	$return = $url . '&project=' . $arg1;
+            	break;
+
             case 'newtask':
             case 'newmultitasks':
                 $return = $url . '&project=' . $arg1 . ($arg2 ? '&supertask=' . $arg2 : '');
@@ -942,16 +1158,14 @@ function CreateURL($type, $arg1 = null, $arg2 = null, $arg3 = array())
             case 'lostpw':
             case 'myprofile':
             case 'register':
-            case 'reports':
             	$return = $url;
             	break;
+
             case 'mytasks':
             	$return = $baseurl.'index.php?do=index&project='.$arg1.'&dev='.$arg2;
             	break;
-            case 'tasklist':
-            	$return = $baseurl.'index.php?project='.$arg1;
-            	break;
-        	default:
+
+            default:
         		$return = $baseurl . 'index.php';
         		break;
         }
@@ -963,6 +1177,7 @@ function CreateURL($type, $arg1 = null, $arg2 = null, $arg3 = array())
     }
     return $url->get();
 } // }} }
+
 // Page  numbering {{{
 // Thanks to Nathan Fritz for this.  http://www.netflint.net/
 function pagenums($pagenum, $perpage, $totalcount)
@@ -979,18 +1194,23 @@ function pagenums($pagenum, $perpage, $totalcount)
     $pages  = ceil($totalcount / $perpage);
     $output = sprintf(eL('page'), $pagenum, $pages);
 
-    if (!($totalcount / $perpage <= 1)) {
-        $output .= '<span class="DoNotPrint"> &nbsp;&nbsp;--&nbsp;&nbsp; ';
+    if ( $totalcount / $perpage > 1 ) {
+ 	$params=$_GET;
+ 	# unset unneeded params for shorter urls
+	unset($params['do']);
+	unset($params['project']);
+	unset($params['switch']);
+        $output .= '<span class="pagenums DoNotPrint">';
 
         $start  = max(1, $pagenum - 4 + min(2, $pages - $pagenum));
         $finish = min($start + 4, $pages);
 
         if ($start > 1) {
-            $url = Filters::noXSS(CreateURL('index', $proj->id, null, array_merge($_GET, array('pagenum' => 1))));
+            $url = Filters::noXSS(CreateURL('tasklist', $proj->id, null, array_merge($params, array('pagenum' => 1))));
             $output .= sprintf('<a href="%s">&lt;&lt;%s </a>', $url, eL('first'));
         }
         if ($pagenum > 1) {
-            $url = Filters::noXSS(CreateURL('index', $proj->id, null, array_merge($_GET, array('pagenum' => $pagenum - 1))));
+            $url = Filters::noXSS(CreateURL('tasklist', $proj->id, null, array_merge($params, array('pagenum' => $pagenum - 1))));
             $output .= sprintf('<a id="previous" accesskey="p" href="%s">&lt; %s</a> - ', $url, eL('previous'));
         }
 
@@ -1002,17 +1222,17 @@ function pagenums($pagenum, $perpage, $totalcount)
             if ($pagelink == $pagenum) {
                 $output .= sprintf('<strong>%d</strong>', $pagelink);
             } else {
-                $url = Filters::noXSS(CreateURL('index', $proj->id, null, array_merge($_GET, array('pagenum' => $pagelink))));
+                $url = Filters::noXSS(CreateURL('tasklist', $proj->id, null, array_merge($params, array('pagenum' => $pagelink))));
                 $output .= sprintf('<a href="%s">%d</a>', $url, $pagelink);
             }
         }
 
         if ($pagenum < $pages) {
-            $url =  Filters::noXSS(CreateURL('index', $proj->id, null, array_merge($_GET, array('pagenum' => $pagenum + 1))));
+            $url =  Filters::noXSS(CreateURL('tasklist', $proj->id, null, array_merge($params, array('pagenum' => $pagenum + 1))));
             $output .= sprintf(' - <a id="next" accesskey="n" href="%s">%s &gt;</a>', $url, eL('next'));
         }
         if ($finish < $pages) {
-            $url = Filters::noXSS(CreateURL('index', $proj->id, null, array_merge($_GET, array('pagenum' => $pages))));
+            $url = Filters::noXSS(CreateURL('tasklist', $proj->id, null, array_merge($params, array('pagenum' => $pages))));
             $output .= sprintf('<a href="%s"> %s &gt;&gt;</a>', $url, eL('last'));
         }
         $output .= '</span>';
@@ -1025,7 +1245,7 @@ class Url {
     public $url = '';
     public $parsed;
 
-    public function url($url = '') {
+    public function __construct($url = '') {
         $this->url = $url;
         $this->parsed = parse_url($this->url);
     }

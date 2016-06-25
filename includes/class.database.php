@@ -73,7 +73,15 @@ class Database
         $this->dbtype   = $dbtype;
         $this->dbprefix = $dbprefix;
         $ADODB_COUNTRECS = false;
-        
+    
+        # 20160408 peterdd: hack to enable database socket usage with adodb-5.20.3
+        # For instance on german 1und1 managed linux servers, e.g. $dbhost='localhost:/tmp/mysql5.sock'
+        if( $dbtype=='mysqli' && 'localhost:/'==substr($dbhost,0,11) ){
+            $dbsocket=substr($dbhost,10);
+            $dbhost='localhost';
+            ini_set( 'mysqli.default_socket', $dbsocket );
+        }
+
         $this->dblink = NewADOConnection($this->dbtype);
         $this->dblink->Connect($dbhost, $dbuser, $dbpass, $dbname);
 
@@ -117,13 +125,23 @@ class Database
     }
 
     /**
+     * Insert_ID
+     * 
+     * @access public
+     */
+    public function Insert_ID()
+    {
+        return $this->dblink->Insert_ID();
+    }
+
+    /**
      * CountRows
      * Returns the number of rows in a result
      * @param object $result
      * @access public
      * @return int
      */
-    public function CountRows(&$result)
+    public function CountRows($result)
     {
         return (int) $result->RecordCount();
     }
@@ -142,12 +160,12 @@ class Database
     /**
      * FetchRow
      *
-     * @param & $result
+     * @param $result
      * @access public
      * @return void
      */
 
-    public function FetchRow(&$result)
+    public function FetchRow($result)
     {
         return $result->FetchRow();
     }
@@ -155,13 +173,13 @@ class Database
     /**
      * fetchCol
      *
-     * @param & $result
+     * @param $result
      * @param int $col
      * @access public
      * @return void
      */
 
-    public function fetchCol(&$result, $col=0)
+    public function fetchCol($result, $col=0)
     {
         $tab = array();
         while ($tmp = $result->fetchRow()) {
@@ -247,11 +265,11 @@ class Database
     /**
      * FetchOne
      *
-     * @param & $result
+     * @param $result
      * @access public
      * @return array
      */
-    public function FetchOne(&$result)
+    public function FetchOne($result)
     {
         $row = $this->FetchRow($result);
         return (count($row) ? $row[0] : '');
@@ -260,11 +278,11 @@ class Database
     /**
      * FetchAllArray
      *
-     * @param & $result
+     * @param $result
      * @access public
      * @return array
      */
-    public function FetchAllArray(&$result)
+    public function FetchAllArray($result)
     {
         return $result->GetArray();
     }
@@ -280,7 +298,7 @@ class Database
      * @access public
      * @return array process the returned array with foreach ($return as $row) {}
      */
-    public function GroupBy(&$result, $column)
+    public function GroupBy($result, $column)
     {
         $rows = array();
         while ($row = $this->FetchRow($result)) {
