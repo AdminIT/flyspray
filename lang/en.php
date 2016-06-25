@@ -1076,5 +1076,6 @@ Regards,',
 'savetask'                => 'save task'
 'dayWithoutAction'        => 'Days without response',
 'countDays'               => 'Number of days',
+'phonenumber'             => 'Phone number',
 );
 ?>

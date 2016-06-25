@@ -16,6 +16,12 @@
     <td><?php echo Filters::noXSS($theuser->infos['jabber_id']); ?></td>
   </tr>
   <?php endif; ?>
+  <?php if (empty($fs->infos['phone_number'])): ?>
+  <tr>
+    <th><?php echo Filters::noXSS(L('phonenumber')); ?></th>
+    <td><?php echo Filters::noXSS($theuser->infos['phone_number']); ?></td>
+  </tr>
+  <?php endif; ?>
   <tr>
     <th><?php echo Filters::noXSS(L('globalgroup')); ?></th>
     <td><?php echo Filters::noXSS($groups[Flyspray::array_find('group_id', $theuser->infos['global_group'], $groups)]['group_name']); ?></td>

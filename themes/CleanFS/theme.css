@@ -1274,19 +1274,19 @@ div#closeform {
 #taskdeps table {margin:0 0 0.8em -0.2em;}
 #taskdeps td {padding:0.2em 0.4em;}
 #taskdeps img {vertical-align:middle;margin-top:-1px;}
-input[type=text], input[type=password]{
+input[type=text], input[type=password, input[type=number]]{
     color: #000;
     border: 1px solid #ccc;
     padding: 2px;
     vertical-align: middle;
 }
-input[type=text], input[type=password]{
+input[type=text], input[type=password, input[type=number]]{
     height: 19px;
 }
 #table input[type=text] {
     width: 120px;
 }
-input[type=text], input[type=submit], button {
+input[type=text], input[type=submit], button, input[type=number] {
     -moz-border-radius: 3px;
     -webkit-border-radius: 3px;
     border-radius: 3px;

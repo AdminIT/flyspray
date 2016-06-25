@@ -11,6 +11,11 @@
           value="<?php echo Filters::noXSS(Req::val('email_address', $theuser->infos['email_address'])); ?>" />
       </li>
       <li>
+        <label for="phonenumber"><?php echo Filters::noXSS(L('phonenumber')); ?></label>
+        <input id="phonenumber" class="text" type="text" name="phone_number" maxlength="15"
+          value="<?php echo Filters::noXSS(Req::val('phone_number', $theuser->infos['phone_number'])); ?>" />
+      </li>
+      <li>
         <label for="hide_my_email"><?php echo Filters::noXSS(L('hidemyemail')); ?></label>
         <?php echo tpl_checkbox('hide_my_email', Req::val('hide_my_email', !Post::val('action') && $theuser->infos['hide_my_email']), 'hide_my_email', 1, ($fs->prefs['hide_emails'] ) ? array('checked' => 'true', 'disabled' => 'true') : ''); ?>
       </li>
