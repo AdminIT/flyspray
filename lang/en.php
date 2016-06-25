@@ -1073,7 +1073,7 @@ Regards,',
 'movecursordown'          => 'move cursor down',
 'taskdetails'             => 'Task Details',
 'taskediting'             => 'Task Editing',
-'savetask'                => 'save task'
+'savetask'                => 'save task',
 'dayWithoutAction'        => 'Days without response',
 'countDays'               => 'Number of days',
 'phonenumber'             => 'Phone number',
