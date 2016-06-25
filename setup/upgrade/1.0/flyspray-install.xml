@@ -829,6 +829,10 @@
     <field name="email_address" type="C" size="100">
       <NOTNULL/>
     </field>
+    <field name="phone_number" type="C" size="40">
+      <NOTNULL/>
+      <DEFAULT value=""/>
+    </field>
     <field name="jabber_id" type="C" size="100">
       <NOTNULL/>
     </field>
